@@ -1,0 +1,61 @@
+{
+  "currency_symbol": {
+    "description": "货币符号",
+    "type": "string",
+    "default": "¥",
+    "hint": "显示在金额前，如 ¥35.00"
+  },
+  "nl_enabled": {
+    "description": "自然语言记账",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后无需指令，直接发送「午饭花了35」「发工资了8000块」即可记账"
+  },
+  "nl_max_length": {
+    "description": "参与解析的消息最大长度",
+    "type": "int",
+    "default": 60,
+    "hint": "超过该长度的消息不会被视为记账消息",
+    "slider": { "min": 20, "max": 120, "step": 5 }
+  },
+  "llm_parse_enabled": {
+    "description": "大模型辅助解析",
+    "type": "bool",
+    "default": true,
+    "hint": "本地规则解析失败时，让大模型尝试理解记账意图（需要已在 WebUI 配置模型提供商）"
+  },
+  "llm_parse_in_group": {
+    "description": "群聊中也使用大模型解析",
+    "type": "bool",
+    "default": false,
+    "hint": "关闭时群聊仅使用本地规则解析，避免消息频繁时大量调用模型"
+  },
+  "reply_in_group": {
+    "description": "群聊中回复记账结果",
+    "type": "bool",
+    "default": true,
+    "hint": "关闭后群聊中静默记账，不回复消息"
+  },
+  "comment_mode": {
+    "description": "记账点评模式",
+    "type": "string",
+    "options": ["local", "llm", "off"],
+    "labels": ["本地吐槽", "AI 点评", "关闭点评"],
+    "subtitles": ["内置幽默模板，零成本即时返回", "调用大模型逐笔点评（更生动）", "只记账不点评"],
+    "default": "local"
+  },
+  "snark_level": {
+    "description": "吐槽毒舌程度",
+    "type": "string",
+    "options": ["gentle", "normal", "savage"],
+    "labels": ["温柔", "普通", "毒舌"],
+    "subtitles": ["鼓励为主", "正常调侃", "犀利吐槽，慎选"],
+    "default": "normal"
+  },
+  "daily_budget": {
+    "description": "每日预算",
+    "type": "float",
+    "default": 0,
+    "hint": "大于 0 时启用每日预算提醒，点评会根据当日超支情况额外吐槽"
+  }
+}

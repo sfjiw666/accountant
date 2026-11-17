@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>可视化账本</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="titles">
+          <h1 id="t-title">可视化账本</h1>
+          <p class="subtitle"><span id="t-subtitle">AI 记账管家 · 账本总览</span></p>
+        </div>
+        <div class="actions">
+          <button id="btn-export-csv" class="btn" type="button">导出 CSV</button>
+          <button id="btn-export-json" class="btn" type="button">导出 JSON</button>
+          <button id="btn-refresh" class="btn btn-primary" type="button">刷新</button>
+        </div>
+      </header>
+
+      <div class="filters" id="filters">
+        <div class="filter-group" role="group" aria-label="时间范围">
+          <div class="segment" id="seg-days">
+            <button type="button" data-days="7">7 天</button>
+            <button type="button" data-days="30" class="active">30 天</button>
+            <button type="button" data-days="90">90 天</button>
+            <button type="button" data-days="365">1 年</button>
+          </div>
+          <select id="sel-user" aria-label="用户"></select>
+        </div>
+        <div class="filter-group table-only">
+          <select id="sel-type" aria-label="类型">
+            <option value="">全部类型</option>
+            <option value="expense">支出</option>
+            <option value="income">收入</option>
+          </select>
+          <select id="sel-category" aria-label="分类">
+            <option value="">全部分类</option>
+          </select>
+        </div>
+      </div>
+
+      <main id="content">
+        <section class="tiles" id="tiles" aria-live="polite"></section>
+
+        <section class="charts-row">
+          <div class="card" id="card-expense-cat">
+            <div class="card-head">
+              <h2 id="t-cat-expense">支出分类</h2>
+              <span class="muted" id="expense-cat-total"></span>
+            </div>
+            <div class="bars" id="bars-expense"></div>
+          </div>
+          <div class="card" id="card-income-cat">
+            <div class="card-head">
+              <h2 id="t-cat-income">收入分类</h2>
+              <span class="muted" id="income-cat-total"></span>
+            </div>
+            <div class="bars" id="bars-income"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2 id="t-daily">每日收支</h2>
+            <div class="legend">
+              <span class="legend-item"><span class="swatch swatch-expense"></span><span id="t-leg-expense">支出</span></span>
+              <span class="legend-item"><span class="swatch swatch-income"></span><span id="t-leg-income">收入</span></span>
+            </div>
+          </div>
+          <div class="daily-wrap">
+            <div class="daily" id="daily"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2 id="t-records">账目明细</h2>
+            <span class="muted" id="records-total-line"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="records-table">
+              <thead>
+                <tr>
+                  <th id="th-time">时间</th>
+                  <th id="th-type">类型</th>
+                  <th id="th-amount" class="num">金额</th>
+                  <th id="th-category">分类</th>
+                  <th id="th-note">备注</th>
+                  <th id="th-user">用户</th>
+                  <th id="th-source">来源</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="records-body"></tbody>
+            </table>
+            <div class="empty" id="records-empty" hidden>
+              <div class="empty-icon">🍃</div>
+              <div id="t-empty-records">这段时间还没有记录，去和机器人说句「午饭花了 30」吧</div>
+            </div>
+          </div>
+          <div class="pager">
+            <button id="btn-prev" class="btn" type="button">‹ 上一页</button>
+            <span id="page-info" class="muted"></span>
+            <button id="btn-next" class="btn" type="button">下一页 ›</button>
+          </div>
+        </section>
+      </main>
+
+      <div id="toast" role="status" hidden></div>
+      <div id="tooltip" hidden></div>
+    </div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
