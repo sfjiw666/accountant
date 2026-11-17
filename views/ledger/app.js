@@ -47,6 +47,8 @@ const T = {
   tip_share: "占比",
   other: "其他",
   total_records: "共 {n} 条",
+  n_records: "{n} 笔",
+  click_to_filter: "点击筛选明细",
 };
 
 const t = (key) => bridge.t(`views.ledger.${key}`, T[key] ?? key);
@@ -259,21 +261,24 @@ function renderBars(containerId, rows, emptyText, cssVar, totalLabelId, cur) {
     $(totalLabelId).textContent = "";
     return;
   }
-  let top = list.slice(0, 8);
-  const rest = list.slice(8);
+  // 前端自己排序，不依赖后端顺序；最大值取排序后的第一名，保证条形不会溢出
+  const sorted = [...list].sort((a, b) => b.total - a.total);
+  let top = sorted.slice(0, 8);
+  const rest = sorted.slice(8);
   if (rest.length) {
     top = top.concat([
       {
         category: t("other"),
         total: rest.reduce((a, r) => a + r.total, 0),
         count: rest.reduce((a, r) => a + (r.count || 0), 0),
+        folded: true,
       },
     ]);
   }
   const grand = list.reduce((a, r) => a + r.total, 0);
   $(totalLabelId).textContent = `${money(grand, cur)} · ${list.length} 类`;
   const max = top[0].total || 1;
-  for (const r of top) {
+  top.forEach((r, idx) => {
     const row = el("div", "bar-row");
     row.dataset.name = r.category;
     row.dataset.total = r.total;
@@ -281,16 +286,31 @@ function renderBars(containerId, rows, emptyText, cssVar, totalLabelId, cur) {
     row.dataset.share = grand ? (r.total / grand) * 100 : 0;
     row.dataset.color = cssVar;
     row.tabIndex = 0;
+    if (r.folded) {
+      row.dataset.folded = "1"; // 聚合行不可作为筛选条件
+    } else {
+      row.title = t("click_to_filter");
+    }
+    if (state.category && state.category === r.category) row.classList.add("active");
 
-    const name = el("div", "bar-name", r.category);
+    const name = el("div", "bar-name");
+    name.append(el("span", "bar-rank", `${idx + 1}`));
+    name.append(el("span", "name-text", r.category));
+
     const track = el("div", "bar-track");
     const fill = el("div", "bar-fill");
     fill.style.width = `${Math.max((r.total / max) * 100, 1.5)}%`;
     track.append(fill);
-    const value = el("div", "bar-value", money(r.total, cur));
+
+    const value = el("div", "bar-value");
+    value.append(document.createTextNode(money(r.total, cur)));
+    const share = el("span", "bar-share");
+    share.textContent = `${grand ? ((r.total / grand) * 100).toFixed(0) : 0}%`;
+    value.append(share);
+
     row.append(name, track, value);
     box.append(row);
-  }
+  });
 }
 
 /* ---------------- 渲染：每日收支 ---------------- */
@@ -320,6 +340,10 @@ function renderDaily() {
     label.style.bottom = `${(i / 4) * 100}%`;
     plot.append(line, label);
   }
+  // 基线 0 刻度（基线本身由 border-bottom 绘制）
+  const zero = el("span", "grid-label", "0");
+  zero.style.bottom = "-1px";
+  plot.append(zero);
 
   const bands = el("div", "daily-bands");
   const maxExpense = Math.max(...days.map((d) => d.expense));
@@ -355,12 +379,22 @@ function renderDaily() {
   plot.append(bands);
   box.append(plot);
 
+  // x 轴日期标签：等间隔取点；末尾标签若与前一标签相邻则替换前一标签，避免重叠
+  const labeled = new Set();
+  for (let i = 0; i < days.length; i++) {
+    if (i % labelEvery === 0) labeled.add(i);
+  }
+  const lastIdx = days.length - 1;
+  if (!labeled.has(lastIdx)) {
+    let prev = lastIdx - 1;
+    while (prev >= 0 && !labeled.has(prev)) prev--;
+    if (lastIdx - prev <= Math.ceil(labelEvery * 0.6)) labeled.delete(prev);
+    labeled.add(lastIdx);
+  }
   const labels = el("div", "x-labels");
   days.forEach((d, idx) => {
     const lab = el("div", "x-label");
-    if (idx % labelEvery === 0 || idx === days.length - 1) {
-      lab.textContent = d.date.slice(5); // MM-DD
-    }
+    if (labeled.has(idx)) lab.textContent = d.date.slice(5); // MM-DD
     labels.append(lab);
   });
   box.append(labels);
@@ -380,7 +414,7 @@ function renderTable() {
     : "";
 
   for (const r of rows) {
-    const tr = el("tr");
+    const tr = el("tr", r.type === "income" ? "income-row" : "expense-row");
     tr.append(el("td", "", fmtDate(r.created_at)));
 
     const typeCell = el("td");
@@ -394,9 +428,23 @@ function renderTable() {
 
     const amount = el("td", "num amount", `${r.type === "income" ? "+" : MINUS}${money(r.amount, cur)}`);
     tr.append(amount);
-    tr.append(el("td", "", r.category || "—"));
+
+    const catCell = el("td");
+    const chip = el("button", `cat-chip${state.category === r.category ? " active" : ""}`, r.category || "—");
+    chip.type = "button";
+    chip.dataset.category = r.category || "";
+    chip.title = t("click_to_filter");
+    catCell.append(chip);
+    tr.append(catCell);
+
     tr.append(el("td", "note-cell", r.note || "—"));
-    tr.append(el("td", "", r.user_name || r.user_id));
+
+    const userCell = el("td");
+    const userBtn = el("button", "user-link", r.user_name || r.user_id);
+    userBtn.type = "button";
+    userBtn.dataset.userId = r.user_id;
+    userCell.append(userBtn);
+    tr.append(userCell);
     tr.append(el("td", "", r.platform || "—"));
 
     const action = el("td");
@@ -419,20 +467,52 @@ function renderPager() {
 
 /* ---------------- 筛选器 ---------------- */
 
-function renderUserSelect() {
-  const sel = $("sel-user");
-  const prev = state.userId;
-  const options = [el("option", "", t("all_users"))];
-  options[0].value = "";
-  for (const u of state.users ?? []) {
-    const opt = el("option", "", `${u.user_name}（${u.platform || "?"}）`);
-    opt.value = u.user_id;
-    options.push(opt);
+function renderUserCards() {
+  const strip = $("user-strip");
+  strip.replaceChildren();
+  // 已选用户不再有记录时回退到「全部用户」
+  if (state.userId && !(state.users ?? []).some((u) => u.user_id === state.userId)) {
+    state.userId = "";
   }
-  sel.replaceChildren(...options);
-  const exists = options.some((o) => o.value === prev);
-  sel.value = exists ? prev : "";
-  state.userId = sel.value;
+
+  // 「全部用户」卡片
+  const all = el("button", `user-card${state.userId ? "" : " active"}`);
+  all.type = "button";
+  all.dataset.userId = "";
+  const allAvatar = el("span", "avatar avatar-all", "👥");
+  const allInfo = el("span", "user-info");
+  allInfo.append(el("span", "u-name", t("all_users")));
+  const totalCnt = (state.users ?? []).reduce((a, u) => a + (u.count || 0), 0);
+  allInfo.append(el("span", "u-meta", t("n_records").replace("{n}", `${totalCnt}`)));
+  all.append(allAvatar, allInfo);
+  strip.append(all);
+
+  // 各用户卡片：头像首字 + 名称 + 平台/笔数/累计支出
+  (state.users ?? []).forEach((u, i) => {
+    const card = el(
+      "button",
+      `user-card${state.userId === u.user_id ? " active" : ""}`,
+    );
+    card.type = "button";
+    card.dataset.userId = u.user_id;
+    card.title = `${u.user_name}（${u.platform || "?"}）`;
+
+    const avatar = el(
+      "span",
+      `avatar ${i < 8 ? `avatar-c${i}` : "avatar-cx"}`,
+      [...(u.user_name || "?")][0]?.toUpperCase() ?? "?",
+    );
+    const info = el("span", "user-info");
+    info.append(el("span", "u-name", u.user_name || u.user_id));
+    const meta = el("span", "u-meta");
+    meta.append(document.createTextNode(`${u.platform || "?"} · `));
+    const exp = el("span", "u-expense");
+    exp.textContent = money(u.expense_total ?? 0, state.stats?.currency ?? "¥");
+    meta.append(exp, document.createTextNode(` · ${t("n_records").replace("{n}", `${u.count ?? 0}`)}`));
+    info.append(meta);
+    card.append(avatar, info);
+    strip.append(card);
+  });
 }
 
 function renderCategorySelect() {
@@ -478,7 +558,7 @@ async function load() {
     state.stats = stats;
     state.records = recs.records ?? [];
     state.total = recs.total ?? 0;
-    renderUserSelect();
+    renderUserCards();
     renderCategorySelect();
     renderAll();
   } catch (e) {
@@ -540,8 +620,8 @@ function renderTexts() {
   typeSel.options[0].textContent = t("all_types");
   typeSel.options[1].textContent = t("type_expense");
   typeSel.options[2].textContent = t("type_income");
-  // 语言切换后重建带数据的下拉框（保持当前选择）
-  if (state.users.length) renderUserSelect();
+  // 语言切换后重建带数据的组件（保持当前选择）
+  if (state.users.length) renderUserCards();
   if (state.stats) renderCategorySelect();
 }
 
@@ -557,8 +637,12 @@ function bindEvents() {
     load();
   });
 
-  $("sel-user").addEventListener("change", (e) => {
-    state.userId = e.target.value;
+  // 用户卡片条：点击切换用户筛选
+  $("user-strip").addEventListener("click", (e) => {
+    const card = e.target.closest("button[data-user-id]");
+    if (!card) return;
+    if (state.userId === card.dataset.userId) return;
+    state.userId = card.dataset.userId;
     state.page = 1;
     load();
   });
@@ -575,6 +659,27 @@ function bindEvents() {
     load();
   });
 
+  // 分类排行条：点击/回车 切换该分类的明细筛选
+  const onBarAction = (row) => {
+    if (!row || row.dataset.folded) return;
+    state.category = state.category === row.dataset.name ? "" : row.dataset.name;
+    $("sel-category").value = state.category;
+    state.page = 1;
+    load();
+  };
+  for (const boxId of ["bars-expense", "bars-income"]) {
+    $(boxId).addEventListener("click", (e) => onBarAction(e.target.closest(".bar-row")));
+    $(boxId).addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        const row = e.target.closest(".bar-row");
+        if (row) {
+          e.preventDefault();
+          onBarAction(row);
+        }
+      }
+    });
+  }
+
   $("btn-refresh").addEventListener("click", () => load());
 
   $("btn-prev").addEventListener("click", () => {
@@ -590,19 +695,41 @@ function bindEvents() {
   });
 
   $("records-body").addEventListener("click", async (e) => {
+    // 删除
     const btn = e.target.closest("button[data-id]");
-    if (!btn) return;
-    if (!window.confirm(t("confirm_delete"))) return;
-    try {
-      const res = await bridge.apiPost(`records/${btn.dataset.id}/delete`, {});
-      if (res?.deleted) {
-        toast(t("deleted"));
-        load();
-      } else {
-        toast(`${t("load_error")}: not found`);
+    if (btn) {
+      if (!window.confirm(t("confirm_delete"))) return;
+      try {
+        const res = await bridge.apiPost(`records/${btn.dataset.id}/delete`, {});
+        if (res?.deleted) {
+          toast(t("deleted"));
+          load();
+        } else {
+          toast(`${t("load_error")}: not found`);
+        }
+      } catch (err) {
+        toast(`${t("load_error")}: ${err?.message ?? err}`);
       }
-    } catch (err) {
-      toast(`${t("load_error")}: ${err?.message ?? err}`);
+      return;
+    }
+    // 点击分类芯片：按该分类筛选
+    const chip = e.target.closest("button[data-category]");
+    if (chip) {
+      const cat = chip.dataset.category;
+      if (cat) {
+        state.category = state.category === cat ? "" : cat;
+        $("sel-category").value = state.category;
+        state.page = 1;
+        load();
+      }
+      return;
+    }
+    // 点击用户名：切换到该用户
+    const userBtn = e.target.closest("button[data-user-id]");
+    if (userBtn && userBtn.dataset.userId) {
+      state.userId = userBtn.dataset.userId;
+      state.page = 1;
+      load();
     }
   });
 
