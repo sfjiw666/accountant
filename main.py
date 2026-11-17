@@ -63,7 +63,7 @@ def _fmt_money(symbol: str, value: float) -> str:
 
 @register(
     PLUGIN_NAME,
-    "YourName",
+    "sfjiw",
     "自然语言记账 + 幽默点评 + WebUI 可视化账本",
     "1.0.0",
 )

@@ -2,6 +2,8 @@
 
 一个 AstrBot 记账插件：**自然语言记账 + 幽默点评 + WebUI 可视化账本**。
 
+**开发商**：梦创 ｜ **QQ 交流群**：167017318
+
 > [!NOTE]
 > 本插件基于 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 插件模板 [helloworld](https://github.com/Soulter/helloworld) 开发，遵循 [AstrBot 插件开发文档](https://docs.astrbot.app/dev/star/plugin-new.html)。
 

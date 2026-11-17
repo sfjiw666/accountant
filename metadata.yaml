@@ -1,7 +1,7 @@
 name: astrbot_plugin_accountant
 display_name: AI 记账管家
-desc: 用自然语言随手记账，机器人幽默点评你的每一笔收支，并在 WebUI 提供可视化账本页面。
+desc: 用自然语言随手记账，机器人幽默点评你的每一笔收支，并在 WebUI 提供可视化账本页面。开发商：梦创 ｜ QQ 交流群：167017318
 short_desc: 说句话就能记账，还会毒舌点评。
 version: v1.0.0
-author: YourName
-repo: https://github.com/yourname/astrbot_plugin_accountant
+author: sfjiw
+repo: https://github.com/sfjiw666/accountant
